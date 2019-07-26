@@ -42,24 +42,15 @@ def get_files_on_drive(drive):
             #print("{}\t{}".format(file["name"], file["size"]))
 
             try:
-                file["modified_raw"] = os.path.getmtime(file["name"])
-            except:
-                file["modified_raw"] = ""
-            
-            try:
-                file["modified"] = time.ctime(file["modified_raw"])
+                file["modified"] = os.path.getmtime(file["name"])
             except:
                 file["modified"] = ""
 
             try:
-                file["created_raw"] = os.path.getctime(file["name"])
+                file["created"] = os.path.getctime(file["name"])
             except:
-                file["created_raw"] = ""
-
-            try:
-                file["created"] = time.ctime(file["created_raw"])
-            except:
-                file["created"] = ""         
+                file["created"] = ""
+    
 
             file_list.append(file)
 
@@ -78,9 +69,20 @@ def write_filelist_to_csv(filelist, csvname):
     keys = filelist[0].keys()
 
     with open(csvname, 'w', newline='') as csvFile:
-        writer = csv.DictWriter(csvFile, keys, quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
-        writer.writeheader()
-        writer.writerows(filelist)
+        writer = csv.writer(csvFile, quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+        writer.writerow(['Filename', 'Filesize', 'Modified Timestamp', 'Created Timestamp', 'Modified Readable', 'Created Readable'])
+
+        for file in filelist:
+
+            writer.writerow([
+                file["name"], 
+                file["size"],
+                file["modified"],
+                time.ctime(file["modified"]),
+                file["created"],
+                time.ctime(file["created"])
+                ])
+
 
 log_path = "G:\\Dropbox\\Stuff\\Backups\\HDD Logs\\"
 
@@ -88,6 +90,8 @@ if __name__ == '__main__':
     print("Getting available drives...")
     drives = get_drive_letters()
     print(drives)
+
+    drives = ["D:\\"]
 
     for drive in drives:
         print("Scanning " + drive + "...")
