@@ -85,9 +85,12 @@ if __name__ == '__main__':
                         file["created_r"]
                     ])
 
-        print("Zipping CSV...")
-        with zipfile.ZipFile(log_path + filename + ".zip", mode='w') as newzip:
-            newzip.write(filename_csv, compress_type=zipfile.ZIP_DEFLATED)
+        if (count > 0):
+            print("Zipping CSV...")
+            with zipfile.ZipFile(log_path + filename + ".zip", mode='w') as newzip:
+                newzip.write(filename_csv, compress_type=zipfile.ZIP_DEFLATED)
+        else:
+            print("No record created for {}, discarding...".format(drive))
 
         print("Deleting CSV...")
         os.remove(filename_csv)
