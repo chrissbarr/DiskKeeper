@@ -21,69 +21,6 @@ def get_drive_letters():
 
     return drives_returned
 
-def get_files_on_drive(drive):
-    file_list = []
-    for root, dirs, files in os.walk(drive):
-        for f in files + dirs:
-            file = {}
-            file["name"] = os.path.join(root, f)
-
-            if (os.path.isdir(file["name"])):
-                file["folder"] = "Y"
-                print("{}".format(file["name"]))
-            else:
-                file["folder"] = ""
-
-            try:
-                file["size"] = os.path.getsize(file["name"]) 
-            except:
-                file["size"] = 0
-
-            #print("{}\t{}".format(file["name"], file["size"]))
-
-            try:
-                file["modified"] = os.path.getmtime(file["name"])
-            except:
-                file["modified"] = ""
-
-            try:
-                file["created"] = os.path.getctime(file["name"])
-            except:
-                file["created"] = ""
-    
-
-            file_list.append(file)
-
-    # for file in file_list:
-    #     if (os.path.isdir(file["name"])):
-    #         size = 0
-    #         for file2 in file_list:
-    #             if (file["name"] in file2["name"]):
-    #                 size += file2["size"]
-    #         file["size"] = size
-
-    return file_list
-
-def write_filelist_to_csv(filelist, csvname):
-
-    keys = filelist[0].keys()
-
-    with open(csvname, 'w', newline='') as csvFile:
-        writer = csv.writer(csvFile, quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
-        writer.writerow(['Filename', 'Filesize', 'Modified Timestamp', 'Created Timestamp', 'Modified Readable', 'Created Readable'])
-
-        for file in filelist:
-
-            writer.writerow([
-                file["name"], 
-                file["size"],
-                file["modified"],
-                time.ctime(file["modified"]),
-                file["created"],
-                time.ctime(file["created"])
-                ])
-
-
 log_path = "G:\\Dropbox\\Stuff\\Backups\\HDD Logs\\"
 
 if __name__ == '__main__':
@@ -91,22 +28,69 @@ if __name__ == '__main__':
     drives = get_drive_letters()
     print(drives)
 
-    drives = ["D:\\"]
+    #drives = ["C:\\"]
 
     for drive in drives:
-        print("Scanning " + drive + "...")
-        files = get_files_on_drive(drive)
-        filename = "{}_{}_{}.csv".format(os.environ['COMPUTERNAME'], drive[0], datetime.now().strftime('%Y_%m_%d_%H_%M_%S')) 
 
-        print("Writing to CSV...")
-        write_filelist_to_csv(files, filename + ".csv")
+        filename = "{}_{}_{}".format(os.environ['COMPUTERNAME'], drive[0], datetime.now().strftime('%Y_%m_%d_%H_%M_%S')) 
+        filename_csv = filename + ".csv"
+
+        with open(filename_csv, 'w', newline='', encoding='utf-8') as csvFile:
+            writer = csv.writer(csvFile, quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+            writer.writerow(['Filename', 'Filesize', 'Modified Timestamp', 'Created Timestamp', 'Modified Readable', 'Created Readable'])
+
+            count = 0
+            extf = set(('$RECYCLE.BIN','$Recycle.Bin','System Volume Information'))
+
+            for root, dirs, files in os.walk(drive):
+                dirs[:] = [d for d in dirs if d not in extf]
+                for f in files + dirs:
+                    file = {}
+                    file["name"] = os.path.join(root, f)
+                    file["size"] = ""
+                    file["modified"] = ""
+                    file["created"] = ""
+                    file["modified_r"] = ""
+                    file["created_r"] = ""
+
+                    try:
+                        statinfo = os.stat(file["name"])
+                    except:
+                        pass
+                    else:
+                        file["size"] = statinfo.st_size
+                        file["modified"] = statinfo.st_mtime
+                        file["created"] = statinfo.st_ctime
+
+                        try:
+                            file["modified_r"] = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime(file["modified"]))
+                        except:
+                            file["modified_r"] = ""
+
+                        try:
+                            file["created_r"] = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime(file["created"]))
+                        except:
+                            file["created_r"] = ""
+
+                    count += 1
+                    if (count % 10000 == 0):
+                        print("{}-{}".format(count, file))
+
+                    writer.writerow([
+                        file["name"], 
+                        file["size"],
+                        #file["modified"],
+                        file["modified_r"],
+                        #file["created"],
+                        file["created_r"]
+                    ])
 
         print("Zipping CSV...")
         with zipfile.ZipFile(log_path + filename + ".zip", mode='w') as newzip:
-            newzip.write(filename + ".csv", compress_type=zipfile.ZIP_DEFLATED)
+            newzip.write(filename_csv, compress_type=zipfile.ZIP_DEFLATED)
 
         print("Deleting CSV...")
-        os.remove(filename + ".csv")
+        os.remove(filename_csv)
 
     print("Done!")
 
