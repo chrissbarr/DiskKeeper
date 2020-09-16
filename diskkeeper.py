@@ -12,7 +12,7 @@ import zlib
 def get_drive_letters():
     drives_found = win32api.GetLogicalDriveStrings().split('\000')[:-1]
     drives_returned = []
-    drive_types = [win32file.DRIVE_FIXED, win32file.DRIVE_REMOVABLE]
+    drive_types = [win32file.DRIVE_FIXED, win32file.DRIVE_REMOVABLE, win32file.DRIVE_REMOTE]
 
     for drive in drives_found:
         print(win32file.GetDriveType(drive))
