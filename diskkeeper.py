@@ -104,22 +104,22 @@ if __name__ == "__main__":
 
     drive_types = []
     if args.drive_fixed:
-        logging.info("  --drive_fixed = TRUE (drives of this type will be checked)")
+        logging.info("  --drive_fixed = TRUE (drives of this type will be checked automatically)")
         drive_types.append(win32file.DRIVE_FIXED)
     else:
-        logging.info("  --drive_fixed = FALSE (drives of this type will not be checked)")
+        logging.info("  --drive_fixed = FALSE (drives of this type will not be checked automatically)")
 
     if args.drive_removable:
-        logging.info("  --drive_removable = TRUE (drives of this type will be checked)")
+        logging.info("  --drive_removable = TRUE (drives of this type will be checked automatically)")
         drive_types.append(win32file.DRIVE_REMOVABLE)
     else:
-        logging.info("  --drive_removable = FALSE (drives of this type will not be checked)")
+        logging.info("  --drive_removable = FALSE (drives of this type will not be checked automatically)")
 
     if args.drive_remote:
-        logging.info("  --drive_remote = TRUE (drives of this type will be checked)")
+        logging.info("  --drive_remote = TRUE (drives of this type will be checked automatically)")
         drive_types.append(win32file.DRIVE_REMOTE)
     else:
-        logging.info("  --drive_remote = FALSE (drives of this type will not be checked)")
+        logging.info("  --drive_remote = FALSE (drives of this type will not be checked automatically)")
 
     if os.path.isdir(output_dir):
         logging.info("Checking that output directory is accessible... YES")
