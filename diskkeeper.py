@@ -46,12 +46,23 @@ def write_filelist_to_csv(filelist, filename):
                 "Modified Readable",
                 "Created Timestamp",
                 "Created Readable",
+                "Accessed Timestamp",
+                "Accessed Readable",
             ]
         )
 
         for file in filelist:
             writer.writerow(
-                [file["name"], file["size"], file["modified"], file["modified_r"], file["created"], file["created_r"],]
+                [
+                    file["name"],
+                    file["size"],
+                    file["modified"],
+                    file["modified_r"],
+                    file["created"],
+                    file["created_r"],
+                    file["accessed"],
+                    file["accessed_r"],
+                ]
             )
 
 
@@ -139,8 +150,10 @@ if __name__ == "__main__":
                 file["size"] = ""
                 file["modified"] = ""
                 file["created"] = ""
+                file["accessed"] = ""
                 file["modified_r"] = ""
                 file["created_r"] = ""
+                file["accessed_r"] = ""
 
                 try:
                     statinfo = os.stat(file["name"])
@@ -150,6 +163,7 @@ if __name__ == "__main__":
                     file["size"] = statinfo.st_size
                     file["modified"] = statinfo.st_mtime
                     file["created"] = statinfo.st_ctime
+                    file["accessed"] = statinfo.st_atime
 
                     try:
                         file["modified_r"] = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(file["modified"]))
@@ -160,6 +174,11 @@ if __name__ == "__main__":
                         file["created_r"] = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(file["created"]))
                     except:
                         file["created_r"] = ""
+
+                    try:
+                        file["accessed_r"] = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(file["accessed"]))
+                    except:
+                        file["accessed_r"] = ""
 
                 filelist.append(file)
 
