@@ -121,6 +121,13 @@ if __name__ == "__main__":
     else:
         logging.info("  --drive_remote = FALSE (drives of this type will not be checked)")
 
+    if os.path.isdir(output_dir):
+        logging.info("Checking that output directory is accessible... YES")
+    else:
+        logging.error("Checking that output directory is accessible... NO")
+        logging.info("Please re-check output directory.")
+        sys.exit()
+
     logging.info("Assembling list of drives to check: ")
 
     if len(drive_types) != 0:
