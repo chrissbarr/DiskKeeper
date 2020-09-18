@@ -3,6 +3,7 @@ import csv
 import logging
 import os
 import re
+import shutil
 import sys
 import time
 import zipfile
@@ -13,6 +14,7 @@ import win32api
 import win32file
 
 format_linebreak_width = 80
+excluded_directories = set(("$RECYCLE.BIN", "$Recycle.Bin", "System Volume Information"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,6 +34,27 @@ def get_drive_letters(drive_types):
     return drives_returned
 
 
+def write_filelist_to_csv(filelist, filename):
+
+    with open(filename, "w", newline="", encoding="utf-8") as csvFile:
+        writer = csv.writer(csvFile, quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+        writer.writerow(
+            [
+                "Filename",
+                "Filesize",
+                "Modified Timestamp",
+                "Modified Readable",
+                "Created Timestamp",
+                "Created Readable",
+            ]
+        )
+
+        for file in filelist:
+            writer.writerow(
+                [file["name"], file["size"], file["modified"], file["modified_r"], file["created"], file["created_r"],]
+            )
+
+
 if __name__ == "__main__":
 
     logging.info("-" * format_linebreak_width)
@@ -48,120 +71,138 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    logging.info("Arguments passed: ")
+
+    output_dir = args.output_dir
+    logging.info("  output_dir = {}".format(output_dir))
+
     if args.z:
         zip_output = True
+        logging.info("  -z = TRUE (output CSV will be zipped)")
     else:
         zip_output = False
-
-    log_path = args.output_dir
+        logging.info("  -z = FALSE (output CSV will not be zipped)")
 
     drive_list = []
 
     if args.drive:
-        logging.info("Drive specified ({}), checking only this drive.")
+        logging.info("  --drive = {} (this drive is added to the list to check)".format(args.drive))
         drive_list.append(args.drive)
     else:
-        logging.info("Getting available drives...")
-        drive_types = []
-        if args.drive_fixed:
-            drive_types.append(win32file.DRIVE_FIXED)
-        if args.drive_removable:
-            drive_types.append(win32file.DRIVE_REMOVABLE)
-        if args.drive_remote:
-            drive_types.append(win32file.DRIVE_REMOTE)
+        logging.info("  --drive = NONE (no drive specifically added to list to check)")
 
-        if len(drive_types) == 0:
-            logging.error(
-                "Please specify one or more drive types using the --drive_fixed, --drive_removable or --drive_remote arguments."
-            )
-            sys.exit()
+    drive_types = []
+    if args.drive_fixed:
+        logging.info("  --drive_fixed = TRUE (drives of this type will be checked)")
+        drive_types.append(win32file.DRIVE_FIXED)
+    else:
+        logging.info("  --drive_fixed = FALSE (drives of this type will not be checked)")
 
-        logging.info("Only including the following drive types: {}".format(drive_types))
-        drive_list = get_drive_letters(drive_types)
+    if args.drive_removable:
+        logging.info("  --drive_removable = TRUE (drives of this type will be checked)")
+        drive_types.append(win32file.DRIVE_REMOVABLE)
+    else:
+        logging.info("  --drive_removable = FALSE (drives of this type will not be checked)")
 
-    logging.info("The following drives will be checked:")
-    logging.info(drive_list)
+    if args.drive_remote:
+        logging.info("  --drive_remote = TRUE (drives of this type will be checked)")
+        drive_types.append(win32file.DRIVE_REMOTE)
+    else:
+        logging.info("  --drive_remote = FALSE (drives of this type will not be checked)")
+
+    logging.info("Assembling list of drives to check: ")
+
+    if len(drive_types) != 0:
+        logging.info("  Adding the following drive types to list: {}".format(drive_types))
+        drive_list.append(get_drive_letters(drive_types))
+
+    if len(drive_list) == 0:
+        logging.error("  No drives in list of drives to check!")
+        logging.error("  Please either explicitly specify a drive (--drive) to check, or nominate drive")
+        logging.error("  types to be checked using the --drive_fixed, --drive_removable or --drive_remote flags.")
+        sys.exit()
+
+    logging.info("  The following drives will be checked:")
+    logging.info("  {}".format(drive_list))
 
     for drive in drive_list:
 
         logging.info("Beginning check for drive: {}".format(drive))
+        filelist = []
+        count = 0
 
-        filename = "{}_{}_{}".format(os.environ["COMPUTERNAME"], drive[0], datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
-        filename_csv = filename + ".csv"
+        for root, dirs, files in os.walk(drive):
+            dirs[:] = [d for d in dirs if d not in excluded_directories]
+            for f in files + dirs:
+                file = {}
+                file["name"] = os.path.join(root, f)
+                file["size"] = ""
+                file["modified"] = ""
+                file["created"] = ""
+                file["modified_r"] = ""
+                file["created_r"] = ""
 
-        with open(filename_csv, "w", newline="", encoding="utf-8") as csvFile:
-            writer = csv.writer(csvFile, quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
-            writer.writerow(
-                [
-                    "Filename",
-                    "Filesize",
-                    "Modified Timestamp",
-                    "Created Timestamp",
-                    "Modified Readable",
-                    "Created Readable",
-                ]
-            )
-
-            count = 0
-            extf = set(("$RECYCLE.BIN", "$Recycle.Bin", "System Volume Information"))
-
-            for root, dirs, files in os.walk(drive):
-                dirs[:] = [d for d in dirs if d not in extf]
-                for f in files + dirs:
-                    file = {}
-                    file["name"] = os.path.join(root, f)
-                    file["size"] = ""
-                    file["modified"] = ""
-                    file["created"] = ""
-                    file["modified_r"] = ""
-                    file["created_r"] = ""
+                try:
+                    statinfo = os.stat(file["name"])
+                except:
+                    pass
+                else:
+                    file["size"] = statinfo.st_size
+                    file["modified"] = statinfo.st_mtime
+                    file["created"] = statinfo.st_ctime
 
                     try:
-                        statinfo = os.stat(file["name"])
+                        file["modified_r"] = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(file["modified"]))
                     except:
-                        pass
-                    else:
-                        file["size"] = statinfo.st_size
-                        file["modified"] = statinfo.st_mtime
-                        file["created"] = statinfo.st_ctime
+                        file["modified_r"] = ""
 
-                        try:
-                            file["modified_r"] = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(file["modified"]))
-                        except:
-                            file["modified_r"] = ""
+                    try:
+                        file["created_r"] = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(file["created"]))
+                    except:
+                        file["created_r"] = ""
 
-                        try:
-                            file["created_r"] = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(file["created"]))
-                        except:
-                            file["created_r"] = ""
+                filelist.append(file)
 
-                    count += 1
-                    if count % 10000 == 0:
-                        logging.info("{0:08} - {1}".format(count, file["name"]))
+                count += 1
+                if count % 10000 == 0:
+                    logging.info("  {0:08} - {1}".format(count, file["name"]))
 
-                    writer.writerow(
-                        [
-                            file["name"],
-                            file["size"],
-                            file["modified"],
-                            file["modified_r"],
-                            file["created"],
-                            file["created_r"],
-                        ]
-                    )
+        if len(filelist) > 0:
+            logging.info("  Filelist contains entries - saving to CSV.")
 
-        if count > 0:
+            base_filename = "{}_{}_{}".format(
+                os.environ["COMPUTERNAME"], drive[0], datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            )
+
+            logging.info("  Filename will be: {}".format(base_filename))
+
+            filename_csv = base_filename + ".csv"
+            write_filelist_to_csv(filelist, filename_csv)
+            output_filename = filename_csv
+
             if zip_output:
-                logging.info("Zipping CSV...")
-                with zipfile.ZipFile(log_path + filename + ".zip", mode="w") as newzip:
+
+                filename_zip = base_filename + ".zip"
+
+                logging.info("  Zipping CSV...")
+                with zipfile.ZipFile(filename_zip, mode="w") as newzip:
                     newzip.write(filename_csv, compress_type=zipfile.ZIP_DEFLATED)
-                logging.info("Deleting CSV...")
+                logging.info("  Done!")
+
+                logging.info("  Deleting CSV...")
                 os.remove(filename_csv)
+                logging.info("  Done!")
+
+                output_filename = filename_zip
+
+            logging.info("  Moving output file to output directory: ")
+            shutil.move(output_filename, os.path.join(output_dir, output_filename))
+            logging.info("  Done!")
+
         else:
-            logging.info("No record created for {}, discarding...".format(drive))
-            os.remove(filename_csv)
+            logging.info("  Filelist is empty - no records to save.")
 
-        logging.info("Completed check for drive: {}".format(drive))
+        logging.info("  Completed check for drive: {}".format(drive))
 
-    logging.info("Done!")
+    logging.info("Completed checks for all drives in list!")
     logging.info("-" * format_linebreak_width)
