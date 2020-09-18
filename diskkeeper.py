@@ -1,5 +1,6 @@
 import argparse
 import csv
+import logging
 import os
 import re
 import sys
@@ -10,6 +11,14 @@ from datetime import datetime
 
 import win32api
 import win32file
+
+format_linebreak_width = 80
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.FileHandler(os.path.basename(__file__) + ".log"), logging.StreamHandler(),],
+)
 
 
 def get_drive_letters(drive_types):
@@ -24,6 +33,10 @@ def get_drive_letters(drive_types):
 
 
 if __name__ == "__main__":
+
+    logging.info("-" * format_linebreak_width)
+    logging.info("DiskKeeper START")
+    logging.info("-" * format_linebreak_width)
 
     parser = argparse.ArgumentParser(description="DiskKeeper")
     parser.add_argument("output_dir", help="Output directory for records")
@@ -45,10 +58,10 @@ if __name__ == "__main__":
     drive_list = []
 
     if args.drive:
-        print("Drive specified ({}), checking only this drive.")
+        logging.info("Drive specified ({}), checking only this drive.")
         drive_list.append(args.drive)
     else:
-        print("Getting available drives...")
+        logging.info("Getting available drives...")
         drive_types = []
         if args.drive_fixed:
             drive_types.append(win32file.DRIVE_FIXED)
@@ -58,20 +71,20 @@ if __name__ == "__main__":
             drive_types.append(win32file.DRIVE_REMOTE)
 
         if len(drive_types) == 0:
-            print(
-                "Warning - no drive types specified. Please specify one or more using the --drive_fixed, --drive_removable or --drive_remote arguments."
+            logging.error(
+                "Please specify one or more drive types using the --drive_fixed, --drive_removable or --drive_remote arguments."
             )
             sys.exit()
 
-        print("Only including the following drive types: {}".format(drive_types))
+        logging.info("Only including the following drive types: {}".format(drive_types))
         drive_list = get_drive_letters(drive_types)
 
-    print("The following drives will be checked:")
-    print(drive_list)
+    logging.info("The following drives will be checked:")
+    logging.info(drive_list)
 
     for drive in drive_list:
 
-        print("Beginning check for drive: {}".format(drive))
+        logging.info("Beginning check for drive: {}".format(drive))
 
         filename = "{}_{}_{}".format(os.environ["COMPUTERNAME"], drive[0], datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
         filename_csv = filename + ".csv"
@@ -124,7 +137,7 @@ if __name__ == "__main__":
 
                     count += 1
                     if count % 10000 == 0:
-                        print("{}-{}".format(count, file))
+                        logging.info("{0:08} - {1}".format(count, file["name"]))
 
                     writer.writerow(
                         [
@@ -139,15 +152,16 @@ if __name__ == "__main__":
 
         if count > 0:
             if zip_output:
-                print("Zipping CSV...")
+                logging.info("Zipping CSV...")
                 with zipfile.ZipFile(log_path + filename + ".zip", mode="w") as newzip:
                     newzip.write(filename_csv, compress_type=zipfile.ZIP_DEFLATED)
-                print("Deleting CSV...")
+                logging.info("Deleting CSV...")
                 os.remove(filename_csv)
         else:
-            print("No record created for {}, discarding...".format(drive))
+            logging.info("No record created for {}, discarding...".format(drive))
             os.remove(filename_csv)
 
-        print("Completed check for drive: {}".format(drive))
+        logging.info("Completed check for drive: {}".format(drive))
 
-    print("Done!")
+    logging.info("Done!")
+    logging.info("-" * format_linebreak_width)
